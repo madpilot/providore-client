@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto"
-	"crypto/ecdsa"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
@@ -13,7 +11,6 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -21,6 +18,9 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	flag "github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
 func fileExists(path string) bool {
@@ -52,27 +52,34 @@ func generatePrivateKey(path string) {
 	}
 }
 
-func parsePrivateKey(der []byte) (crypto.PrivateKey, error) {
-	if key, err := x509.ParsePKCS1PrivateKey(der); err == nil {
-		return key, nil
-	}
-	if key, err := x509.ParsePKCS8PrivateKey(der); err == nil {
-		switch key := key.(type) {
-		case *rsa.PrivateKey, *ecdsa.PrivateKey:
-			return key, nil
-		default:
-			return nil, fmt.Errorf("Found unknown private key type in PKCS#8 wrapping")
-		}
-	}
-	if key, err := x509.ParseECPrivateKey(der); err == nil {
-		return key, nil
-	}
-	return nil, fmt.Errorf("Failed to parse private key")
+func parsePrivateKey(der []byte) (*rsa.PrivateKey, error) {
+	return x509.ParsePKCS1PrivateKey(der)
 }
 
-func generateCertificateSigningRequest(keyPath string, deviceId string) (err error, csr string) {
+func generateCertificateSigningRequest(keyPath string, deviceId string, configuration map[string]string) (err error, csr string) {
 	subj := pkix.Name{
 		CommonName: deviceId,
+	}
+	if value, ok := configuration["country"]; ok {
+		subj.Country = []string{value}
+	}
+	if value, ok := configuration["state-or-province"]; ok {
+		subj.Province = []string{value}
+	}
+	if value, ok := configuration["locality"]; ok {
+		subj.Locality = []string{value}
+	}
+	if value, ok := configuration["street-address"]; ok {
+		subj.StreetAddress = []string{value}
+	}
+	if value, ok := configuration["postal-code"]; ok {
+		subj.PostalCode = []string{value}
+	}
+	if value, ok := configuration["organization"]; ok {
+		subj.Organization = []string{value}
+	}
+	if value, ok := configuration["organizational-unit"]; ok {
+		subj.OrganizationalUnit = []string{value}
 	}
 
 	template := x509.CertificateRequest{
@@ -192,36 +199,102 @@ func checkCertificateValidity(certificatePath string) (bool, error) {
 }
 
 func main() {
-	var server string
-	var ca string
-	var deviceId string
-	var secretKey string
-	var certificatePath string
-	var privateKey string
+	configFilePath := flag.StringP("config", "c", "", "Path to config file")
+	version := flag.BoolP("version", "v", false, "Print the version number")
+	help := flag.BoolP("help", "h", false, "Print this help message")
 
-	flag.StringVar(&server, "server", "", "Providore server adddress")
-	flag.StringVar(&ca, "ca", "", "Providore Server Certificate Authority Certificate")
-	flag.StringVar(&deviceId, "device-id", "", "Client device id")
-	flag.StringVar(&secretKey, "secret-key", "", "Client secret key")
-	flag.StringVar(&certificatePath, "cert-path", "", "Path to the certificate to monitor")
-	flag.StringVar(&privateKey, "cert-key", "", "Path to the private key")
+	flag.String("server", "", "Providore server address")
+	flag.String("ca", "", "Providore Server Certificate Authority Certificate")
+	flag.String("device-id", "", "Client device id")
+	flag.String("secret", "", "Client secret token")
+	flag.String("cert-path", "", "Path to the certificate to monitor")
+	flag.String("key-path", "", "Path to the private key")
+
 	flag.Parse()
 
-	if !fileExists(privateKey) {
+	if *help {
+		flag.Usage()
+		os.Exit(0)
+	}
+
+	if *version {
+		fmt.Println("0.0.1")
+		os.Exit(0)
+	}
+
+	if *configFilePath != "" {
+		viper.SetConfigFile(*configFilePath)
+	} else {
+		viper.SetConfigName("config")
+		viper.AddConfigPath("/etc/providore-client/")
+		viper.AddConfigPath("$HOME/.config/providore-client/")
+	}
+	viper.SetConfigType("yaml")
+
+	err := viper.ReadInConfig()
+	if err != nil {
+		_, ok := err.(viper.ConfigFileNotFoundError)
+
+		if !ok {
+			fmt.Println("Unable to read config file: %s", err)
+		}
+	}
+
+	viper.BindPFlags(flag.CommandLine)
+
+	server := viper.GetString("server")
+	ca := viper.GetString("ca")
+	deviceId := viper.GetString("device-id")
+	secret := viper.GetString("secret")
+	certificatePath := viper.GetString("cert-path")
+	privateKeyPath := viper.GetString("key-path")
+	csrConfiguration := viper.GetStringMapString("csr")
+
+	if server == "" {
+		fmt.Println("Providore server URL not set!\n")
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	if deviceId == "" {
+		fmt.Println("Device ID not set!\n")
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	if secret == "" {
+		fmt.Println("Secret Key not set!\n")
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	if certificatePath == "" {
+		fmt.Println("Certificate Path not set!\n")
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	if privateKeyPath == "" {
+		fmt.Println("Private Key Path not set!\n")
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	if !fileExists(privateKeyPath) {
 		fmt.Println("Private key not found. Generating one.")
-		generatePrivateKey(privateKey)
+		generatePrivateKey(privateKeyPath)
 	}
 
 	if !fileExists(certificatePath) {
 		fmt.Println("Certificate not found. Requesting a new one.")
-		err, csr := generateCertificateSigningRequest(privateKey, deviceId)
+		err, csr := generateCertificateSigningRequest(privateKeyPath, deviceId, csrConfiguration)
 		if err != nil {
 			fmt.Printf("Unable to generate a CSR: %s\n", err.Error())
 			os.Exit(1)
 		}
 
 		// Next! Request the Certificate!
-		certificate, err := requestCertificate(csr, server, deviceId, secretKey, &ca)
+		certificate, err := requestCertificate(csr, server, deviceId, secret, &ca)
 		if err != nil {
 			fmt.Printf("Unable to request a certificate: %s\n", err.Error())
 			os.Exit(1)
@@ -243,13 +316,13 @@ func main() {
 	}
 
 	if valid {
-		err, csr := generateCertificateSigningRequest(privateKey, deviceId)
+		err, csr := generateCertificateSigningRequest(privateKeyPath, deviceId, csrConfiguration)
 		if err != nil {
 			fmt.Printf("Unable to generate a CSR: %s\n", err.Error())
 			os.Exit(1)
 		}
 
-		certificate, err := requestCertificate(csr, server, deviceId, secretKey, &ca)
+		certificate, err := requestCertificate(csr, server, deviceId, secret, &ca)
 		if err != nil {
 			fmt.Printf("Unable to request a certificate: %s\n", err.Error())
 			os.Exit(1)
