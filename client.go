@@ -136,7 +136,7 @@ func requestCertificate(csr string, server string, deviceId string, secretKey st
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
 					RootCAs:            caCertPool,
-					InsecureSkipVerify: true,
+					InsecureSkipVerify: viper.GetBool("insecure"),
 				},
 			},
 		}
@@ -208,7 +208,7 @@ func main() {
 	flag.String("device-id", "", "Client device id")
 	flag.String("secret", "", "Client secret token")
 	flag.String("cert-path", "", "Path to the certificate to monitor")
-	flag.String("key-path", "", "Path to the private key")
+	flag.Bool("insecure", false, "Don't validate the certificate against the CA")
 
 	flag.Parse()
 
