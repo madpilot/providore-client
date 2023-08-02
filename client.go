@@ -218,7 +218,7 @@ func main() {
 	}
 
 	if *version {
-		fmt.Println("0.0.1")
+		fmt.Println("0.0.2")
 		os.Exit(0)
 	}
 
@@ -338,5 +338,6 @@ func main() {
 		os.Exit(0)
 	} else {
 		fmt.Print("Certificate does not need renewing\n")
+	  os.Exit(-1)
 	}
 }
