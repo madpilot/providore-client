@@ -87,7 +87,7 @@ func generateCertificateSigningRequest(keyPath string, deviceId string, configur
 		SignatureAlgorithm: x509.SHA256WithRSA,
 	}
 
-	keyBytes, err := ioutil.ReadFile(keyPath)
+	keyBytes, err := os.ReadFile(keyPath)
 	if err != nil {
 		fmt.Printf("Unable to read key file: %s\n", err)
 		os.Exit(1)
@@ -229,6 +229,8 @@ func main() {
 		os.Exit(0)
 	}
 
+	viper.SetEnvPrefix("providore")
+
 	if *configFilePath != "" {
 		viper.SetConfigFile(*configFilePath)
 	} else {
@@ -243,11 +245,12 @@ func main() {
 		_, ok := err.(viper.ConfigFileNotFoundError)
 
 		if !ok {
-			fmt.Println("Unable to read config file: %s", err)
+			fmt.Printf("Unable to read config file: %s\n", err)
 		}
 	}
 
 	viper.BindPFlags(flag.CommandLine)
+	viper.AutomaticEnv()
 
 	server := viper.GetString("server")
 	ca := viper.GetString("ca")
@@ -258,42 +261,42 @@ func main() {
 	csrConfiguration := viper.GetStringMapString("csr")
 
 	if server == "" {
-		fmt.Println("Providore server URL not set!\n")
+		fmt.Printf("Providore server URL not set!\n")
 		flag.Usage()
 		os.Exit(1)
 	}
 
 	if deviceId == "" {
-		fmt.Println("Device ID not set!\n")
+		fmt.Printf("Device ID not set!\n")
 		flag.Usage()
 		os.Exit(1)
 	}
 
 	if secret == "" {
-		fmt.Println("Secret Key not set!\n")
+		fmt.Printf("Secret Key not set!\n")
 		flag.Usage()
 		os.Exit(1)
 	}
 
 	if certificatePath == "" {
-		fmt.Println("Certificate Path not set!\n")
+		fmt.Printf("Certificate Path not set!\n")
 		flag.Usage()
 		os.Exit(1)
 	}
 
 	if privateKeyPath == "" {
-		fmt.Println("Private Key Path not set!\n")
+		fmt.Printf("Private Key Path not set!\n")
 		flag.Usage()
 		os.Exit(1)
 	}
 
 	if !fileExists(privateKeyPath) {
-		fmt.Println("Private key not found. Generating one.")
+		fmt.Printf("Private key not found. Generating one.\n")
 		generatePrivateKey(privateKeyPath)
 	}
 
 	if !fileExists(certificatePath) {
-		fmt.Println("Certificate not found. Requesting a new one.")
+		fmt.Printf("Certificate not found. Requesting a new one.\n")
 		err, csr := generateCertificateSigningRequest(privateKeyPath, deviceId, csrConfiguration)
 		if err != nil {
 			fmt.Printf("Unable to generate a CSR: %s\n", err.Error())
@@ -327,6 +330,6 @@ func main() {
 		os.Exit(0)
 	} else {
 		fmt.Print("Certificate does not need renewing\n")
-	  os.Exit(-1)
+		os.Exit(-1)
 	}
 }
