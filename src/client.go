@@ -181,6 +181,7 @@ func requestCertificate(csr string, server string, deviceId string, secretKey st
 }
 
 func checkCertificateValidity(certificatePath string) (bool, error) {
+	fmt.Println(certificatePath)
 	certBytes, err := ioutil.ReadFile(certificatePath)
 	if err != nil {
 		return false, err
@@ -195,6 +196,12 @@ func checkCertificateValidity(certificatePath string) (bool, error) {
 
 	now := time.Now()
 	// Certificate is invalid if it is due to expire is less than 7 days time
+	fmt.Println("7 days ago")
+	fmt.Println(now.Add(time.Hour * 24 * -7))
+	fmt.Println("Not After")
+	fmt.Println(cert.NotAfter)
+	fmt.Println("Valid")
+	fmt.Println(cert.NotAfter.Before(now.Add(time.Hour * 24 * -7)))
 	return cert.NotAfter.Before(now.Add(time.Hour * 24 * -7)), nil
 }
 
@@ -316,24 +323,6 @@ func main() {
 	}
 
 	if valid {
-		err, csr := generateCertificateSigningRequest(privateKeyPath, deviceId, csrConfiguration)
-		if err != nil {
-			fmt.Printf("Unable to generate a CSR: %s\n", err.Error())
-			os.Exit(1)
-		}
-
-		certificate, err := requestCertificate(csr, server, deviceId, secret, &ca)
-		if err != nil {
-			fmt.Printf("Unable to request a certificate: %s\n", err.Error())
-			os.Exit(1)
-		}
-
-		err = ioutil.WriteFile(certificatePath, []byte(certificate), 0600)
-		if err != nil {
-			fmt.Printf("Unable to write a certificate: %s\n", err.Error())
-			os.Exit(1)
-		}
-
 		fmt.Printf("New Certificate generated!\n")
 		os.Exit(0)
 	} else {
