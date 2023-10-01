@@ -8,4 +8,7 @@ Command line client for fetching certificates and configurations for *nix machin
 
 ## Docker
 
-docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v6,linux/arm/v7 -t madpilot/providore-client .
+```
+docker buildx create --use desktop-linux
+docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v6,linux/arm/v7 -t madpilot/providore-client --push .
+```
