@@ -212,10 +212,10 @@ func main() {
 
 	flag.String("server", "", "Providore server address")
 	flag.String("ca", "", "Providore Server Certificate Authority Certificate")
-	flag.String("device-id", "", "Client device id")
+	flag.String("device_id", "", "Client device id")
 	flag.String("secret", "", "Client secret token")
-	flag.String("cert-path", "", "Path to the certificate to monitor")
-	flag.String("key-path", "", "Path to the private key")
+	flag.String("cert_path", "", "Path to the certificate to monitor")
+	flag.String("key_path", "", "Path to the private key")
 	flag.Bool("insecure", false, "Don't validate the certificate against the CA")
 
 	flag.Parse()
@@ -226,7 +226,7 @@ func main() {
 	}
 
 	if *version {
-		fmt.Println("0.0.3")
+		fmt.Println("0.0.4")
 		os.Exit(0)
 	}
 
@@ -255,10 +255,10 @@ func main() {
 
 	server := viper.GetString("server")
 	ca := viper.GetString("ca")
-	deviceId := viper.GetString("device-id")
+	deviceId := viper.GetString("device_id")
 	secret := viper.GetString("secret")
-	certificatePath := viper.GetString("cert-path")
-	privateKeyPath := viper.GetString("key-path")
+	certificatePath := viper.GetString("cert_path")
+	privateKeyPath := viper.GetString("key_path")
 	csrConfiguration := viper.GetStringMapString("csr")
 
 	if server == "" {
