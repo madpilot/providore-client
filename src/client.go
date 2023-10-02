@@ -87,7 +87,7 @@ func generateCertificateSigningRequest(keyPath string, deviceId string, configur
 		SignatureAlgorithm: x509.SHA256WithRSA,
 	}
 
-	keyBytes, err := os.ReadFile(keyPath)
+	keyBytes, err := ioutil.ReadFile(keyPath)
 	if err != nil {
 		fmt.Printf("Unable to read key file: %s\n", err)
 		os.Exit(1)
@@ -215,6 +215,7 @@ func main() {
 	flag.String("device-id", "", "Client device id")
 	flag.String("secret", "", "Client secret token")
 	flag.String("cert-path", "", "Path to the certificate to monitor")
+	flag.String("key-path", "", "Path to the private key")
 	flag.Bool("insecure", false, "Don't validate the certificate against the CA")
 
 	flag.Parse()
@@ -225,7 +226,7 @@ func main() {
 	}
 
 	if *version {
-		fmt.Println("0.0.2")
+		fmt.Println("0.0.3")
 		os.Exit(0)
 	}
 
