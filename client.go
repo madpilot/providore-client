@@ -56,7 +56,7 @@ func parsePrivateKey(der []byte) (*rsa.PrivateKey, error) {
 	return x509.ParsePKCS1PrivateKey(der)
 }
 
-func generateCertificateSigningRequest(keyPath string, deviceId string, configuration map[string]string) (err error, csr string) {
+func generateCertificateSigningRequest(keyPath string, deviceId string, configuration map[string]string, san bool) (err error, csr string) {
 	subj := pkix.Name{
 		CommonName: deviceId,
 	}
@@ -85,6 +85,10 @@ func generateCertificateSigningRequest(keyPath string, deviceId string, configur
 	template := x509.CertificateRequest{
 		Subject:            subj,
 		SignatureAlgorithm: x509.SHA256WithRSA,
+	}
+	if san {
+		// The server only accepts a SAN that matches the device id
+		template.DNSNames = []string{deviceId}
 	}
 
 	keyBytes, err := ioutil.ReadFile(keyPath)
@@ -194,8 +198,8 @@ func checkCertificateValidity(certificatePath string) (bool, error) {
 	}
 
 	now := time.Now()
-	// Certificate is invalid if it is due to expire is less than 7 days time
-	return cert.NotAfter.Before(now.Add(time.Hour * 24 * -7)), nil
+	// Renew if the certificate has expired or will expire within 7 days
+	return cert.NotAfter.Before(now.Add(time.Hour * 24 * 7)), nil
 }
 
 func main() {
@@ -208,6 +212,7 @@ func main() {
 	flag.String("device-id", "", "Client device id")
 	flag.String("secret", "", "Client secret token")
 	flag.String("cert-path", "", "Path to the certificate to monitor")
+	flag.Bool("san", false, "Add the device id as a DNS Subject Alternative Name in the CSR")
 	flag.Bool("insecure", false, "Don't validate the certificate against the CA")
 
 	flag.Parse()
@@ -249,6 +254,7 @@ func main() {
 	certificatePath := viper.GetString("cert-path")
 	privateKeyPath := viper.GetString("key-path")
 	csrConfiguration := viper.GetStringMapString("csr")
+	san := viper.GetBool("san")
 
 	if server == "" {
 		fmt.Println("Providore server URL not set!\n")
@@ -287,7 +293,7 @@ func main() {
 
 	if !fileExists(certificatePath) {
 		fmt.Println("Certificate not found. Requesting a new one.")
-		err, csr := generateCertificateSigningRequest(privateKeyPath, deviceId, csrConfiguration)
+		err, csr := generateCertificateSigningRequest(privateKeyPath, deviceId, csrConfiguration, san)
 		if err != nil {
 			fmt.Printf("Unable to generate a CSR: %s\n", err.Error())
 			os.Exit(1)
@@ -316,7 +322,7 @@ func main() {
 	}
 
 	if valid {
-		err, csr := generateCertificateSigningRequest(privateKeyPath, deviceId, csrConfiguration)
+		err, csr := generateCertificateSigningRequest(privateKeyPath, deviceId, csrConfiguration, san)
 		if err != nil {
 			fmt.Printf("Unable to generate a CSR: %s\n", err.Error())
 			os.Exit(1)
