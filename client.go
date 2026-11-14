@@ -223,7 +223,7 @@ func main() {
 	}
 
 	if *version {
-		fmt.Println("0.0.2")
+		fmt.Println("0.0.3")
 		os.Exit(0)
 	}
 
